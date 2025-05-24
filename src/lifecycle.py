@@ -11,7 +11,7 @@ import logging
 from datetime import datetime
 import numpy as np
 from sklearn.model_selection import train_test_split
-from xgboost import XGBRegressor
+from catboost import CatBoostRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 import re
 import cianparser
@@ -32,7 +32,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 TRAIN_SIZE = 0.8
-MODEL_NAME = "xgboost_regression_v1.pkl"
+MODEL_NAME = "catboost_regression_v1.pkl"
 
 def parse_cian():
     """Parse data from cian.ru"""
@@ -52,7 +52,7 @@ def parse_cian():
             with_saving_csv=False,
             additional_settings={
                 "start_page": 1,
-                "end_page": 2,
+                "end_page": 10,
                 "object_type": "secondary"
             })
         
@@ -98,7 +98,6 @@ def preprocess_data():
         df = df.dropna()
         df = df[df['price'] < 1000000000]
         
-
         df["rooms_1"] = df["rooms_count"] == 1
         df["rooms_2"] = df["rooms_count"] == 2
         df["rooms_3"] = df["rooms_count"] == 3
@@ -107,6 +106,9 @@ def preprocess_data():
 
         df = df[['total_meters', 'floors_count', 'floor', 
                 'rooms_1', 'rooms_2', 'rooms_3', 'first_floor', 'last_floor', 'price']]
+        
+        print("\nДатасет после предобработки:")
+        print(df)
         
         logger.info("\nPreprocessed data statistics:")
         logger.info(f"Number of samples after preprocessing: {len(df)}")
@@ -172,20 +174,16 @@ def train_model():
             X, y, test_size=0.2, random_state=42
         )
    
-        model = XGBRegressor(
-            n_estimators=500,
+        model = CatBoostRegressor(
+            iterations=500,
             learning_rate=0.01,
-            max_depth=5,
-            min_child_weight=5,
-            subsample=0.7,
-            colsample_bytree=0.7,
-            gamma=2,
-            reg_alpha=0.5,
-            reg_lambda=2,
-            random_state=42
+            depth=5,
+            l2_leaf_reg=2,
+            random_seed=42,
+            verbose=100
         )
         
-        model.fit(X_train, y_train)
+        model.fit(X_train, y_train, eval_set=(X_test, y_test), use_best_model=True)
        
         y_pred = model.predict(X_test)
         
@@ -226,8 +224,7 @@ def test_model():
         logger.info(f"Using test file: {test_path}")
  
         test_data = pd.read_csv(test_path)
-        
-        # Убедимся, что все нужные колонки присутствуют
+
         required_columns = [
             "total_meters",
             "floors_count",

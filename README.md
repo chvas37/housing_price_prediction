@@ -55,7 +55,7 @@ jupyter notebook
 ```
 
 ### Модели машинного обучения
-* **XGBoost** - экстремальный градиентный бустинг
+* **CatBoost** - градиентный бустинг от Яндекса
   * Используемые признаки:
     - Площадь квартиры (total_meters)
     - Количество этажей в доме (floors_count)
@@ -63,15 +63,12 @@ jupyter notebook
     - Количество комнат (rooms_1, rooms_2, rooms_3)
     - Первый/последний этаж (first_floor, last_floor)
   * Параметры модели:
-    - n_estimators: 500
+    - iterations: 500
     - learning_rate: 0.01
-    - max_depth: 5
-    - min_child_weight: 5
-    - subsample: 0.7
-    - colsample_bytree: 0.7
-    - gamma: 2
-    - reg_alpha: 0.5
-    - reg_lambda: 2
+    - depth: 5
+    - l2_leaf_reg: 2
+    - random_seed: 42
+    - verbose: 100
 
 ### Метрики оценки
 * **Mean Absolute Error (MAE)** 
@@ -81,10 +78,10 @@ jupyter notebook
 
 ### Результаты
 После обучения модели достигаются следующие результаты:
-* MAE: 6133269.10
-* MSE: 44805803474944.00
-* RMSE: 6693713.73
-* R² Score: 0.582055
+* MAE: 3628347.60
+* MSE: 35941241972057.89
+* RMSE: 5995101.50
+* R² Score: 0.414022
 
 ### Как использовать модель
 1. Загрузите данные в формате CSV

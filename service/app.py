@@ -1,6 +1,7 @@
 import argparse
 from flask import Flask, render_template, request
 from logging.config import dictConfig
+from catboost import CatBoostRegressor
 
 dictConfig(
     {
@@ -30,7 +31,7 @@ app = Flask(__name__)
 
 import joblib
 
-MODEL_NAME = "models/xgboost_regression_v1.pkl"
+MODEL_NAME = "models/catboost_regression_v1.pkl"
 
 @app.route("/")
 def index():
