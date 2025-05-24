@@ -31,7 +31,7 @@ app = Flask(__name__)
 
 import joblib
 
-MODEL_NAME = "models/catboost_regression_v1.pkl"
+MODEL_NAME = "models/linear_regression_v1.pkl"
 
 @app.route("/")
 def index():
