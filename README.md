@@ -55,23 +55,36 @@ jupyter notebook
 ```
 
 ### Модели машинного обучения
-* **Linear Regression** - базовая линейная регрессия
-* **Random Forest** - ансамбль деревьев решений
-* **Gradient Boosting** - градиентный бустинг
 * **XGBoost** - экстремальный градиентный бустинг
-* **Neural Networks** - нейронные сети
+  * Используемые признаки:
+    - Площадь квартиры (total_meters)
+    - Количество этажей в доме (floors_count)
+    - Этаж квартиры (floor)
+    - Количество комнат (rooms_1, rooms_2, rooms_3)
+    - Первый/последний этаж (first_floor, last_floor)
+  * Параметры модели:
+    - n_estimators: 500
+    - learning_rate: 0.01
+    - max_depth: 5
+    - min_child_weight: 5
+    - subsample: 0.7
+    - colsample_bytree: 0.7
+    - gamma: 2
+    - reg_alpha: 0.5
+    - reg_lambda: 2
 
 ### Метрики оценки
-* **Mean Absolute Error (MAE)**
+* **Mean Absolute Error (MAE)** 
 * **Mean Squared Error (MSE)**
-* **Root Mean Squared Error (RMSE)**
-* **R² Score**
+* **Root Mean Squared Error (RMSE)** 
+* **R² Score** 
 
 ### Результаты
 После обучения модели достигаются следующие результаты:
-* MAE: ~$2000
-* RMSE: ~$2500
-* R² Score: ~0.85
+* MAE: 6133269.10
+* MSE: 44805803474944.00
+* RMSE: 6693713.73
+* R² Score: 0.582055
 
 ### Как использовать модель
 1. Загрузите данные в формате CSV
