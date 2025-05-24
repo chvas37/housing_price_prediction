@@ -11,7 +11,7 @@ import logging
 from datetime import datetime
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
+from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 import re
 import cianparser
@@ -32,7 +32,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 TRAIN_SIZE = 0.8
-MODEL_NAME = "linear_regression_v2.pkl"
+MODEL_NAME = "xgboost_regression_v1.pkl"
 
 def parse_cian():
     """Parse data from cian.ru"""
@@ -57,6 +57,13 @@ def parse_cian():
             })
         
         df = pd.DataFrame(data)
+        logger.info(f"Collected {len(df)} samples")
+        logger.info("\nData statistics:")
+        logger.info(f"Price range: {df['price'].min()} - {df['price'].max()}")
+        logger.info(f"Floor range: {df['floor'].min()} - {df['floor'].max()}")
+        logger.info(f"Average price by floor:")
+        logger.info(df.groupby('floor')['price'].mean().to_string())
+        
         df.to_csv(csv_path, encoding='utf-8', index=False)
         logger.info(f"Data saved to {csv_path}")
             
@@ -85,12 +92,28 @@ def preprocess_data():
 
         main_dataframe = pd.read_csv(latest_file)
         main_dataframe['url_id'] = main_dataframe['url'].apply(extract_flat_id)
-        df = main_dataframe[['url_id', 'total_meters', 'price']].set_index('url_id')
+        df = main_dataframe[['url_id', 'total_meters', 'floor', 'floors_count', 'rooms_count', 'price']].set_index('url_id')
         
         df = df.sort_index()
         df = df.dropna()
         df = df[df['price'] < 1000000000]
+        
 
+        df["rooms_1"] = df["rooms_count"] == 1
+        df["rooms_2"] = df["rooms_count"] == 2
+        df["rooms_3"] = df["rooms_count"] == 3
+        df["first_floor"] = df["floor"] == 1
+        df["last_floor"] = df["floor"] == df["floors_count"]
+
+        df = df[['total_meters', 'floors_count', 'floor', 
+                'rooms_1', 'rooms_2', 'rooms_3', 'first_floor', 'last_floor', 'price']]
+        
+        logger.info("\nPreprocessed data statistics:")
+        logger.info(f"Number of samples after preprocessing: {len(df)}")
+        logger.info(f"Price range after preprocessing: {df['price'].min()} - {df['price'].max()}")
+        logger.info(f"Average price by floor after preprocessing:")
+        logger.info(df.groupby('floor')['price'].mean().to_string())
+        
         train_size = int(len(df) * TRAIN_SIZE)
         train_df = df.iloc[:train_size]
         test_df = df.iloc[train_size:]
@@ -125,16 +148,43 @@ def train_model():
         
         logger.info(f"Using train file: {train_path}")
 
-        data = pd.read_csv(train_path)
+        train_df = pd.read_csv(train_path)
 
-        X = data[['total_meters']]
-        y = data['price']
+        required_columns = [
+            "total_meters",
+            "floors_count",
+            "floor",
+            "rooms_1",
+            "rooms_2",
+            "rooms_3",
+            "first_floor",
+            "last_floor"
+        ]
+        
+        for col in required_columns:
+            if col not in train_df.columns:
+                raise ValueError(f"Missing required column: {col}")
+
+        X = train_df[required_columns]
+        y = train_df['price']
 
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42
         )
    
-        model = LinearRegression()
+        model = XGBRegressor(
+            n_estimators=500,
+            learning_rate=0.01,
+            max_depth=5,
+            min_child_weight=5,
+            subsample=0.7,
+            colsample_bytree=0.7,
+            gamma=2,
+            reg_alpha=0.5,
+            reg_lambda=2,
+            random_state=42
+        )
+        
         model.fit(X_train, y_train)
        
         y_pred = model.predict(X_test)
@@ -147,8 +197,6 @@ def train_model():
         logger.info(f"Root Mean Squared Error (RMSE): {rmse:.2f}")
         logger.info(f"R² Score: {r2:.6f}")
         logger.info(f"Mean Absolute Error: {np.mean(np.abs(y_test - y_pred)):.2f} rubles")
-        logger.info(f"Coefficient: {model.coef_[0]:.2f}")
-        logger.info(f"Intercept: {model.intercept_:.2f}")
 
         model_path = models_dir / MODEL_NAME
         joblib.dump(model, model_path)
@@ -178,7 +226,24 @@ def test_model():
         logger.info(f"Using test file: {test_path}")
  
         test_data = pd.read_csv(test_path)
-        X_test = test_data[['total_meters']]
+        
+        # Убедимся, что все нужные колонки присутствуют
+        required_columns = [
+            "total_meters",
+            "floors_count",
+            "floor",
+            "rooms_1",
+            "rooms_2",
+            "rooms_3",
+            "first_floor",
+            "last_floor"
+        ]
+        
+        for col in required_columns:
+            if col not in test_data.columns:
+                raise ValueError(f"Missing required column: {col}")
+
+        X_test = test_data[required_columns]
         y_test = test_data['price']
         
         y_pred = model.predict(X_test)

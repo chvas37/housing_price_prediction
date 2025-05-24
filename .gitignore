@@ -2,3 +2,4 @@
 data
 service/flask.log
 logs
+venv
