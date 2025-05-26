@@ -1,5 +1,6 @@
 .venv
-data
 service/flask.log
 logs
 venv
+data/raw
+data/processed
