@@ -86,11 +86,4 @@ def train_model(train_path):
         
     except Exception as e:
         logger.error(f"Error training model: {e}")
-        raise
-
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
-    train_model("data/processed/train.csv") 
+        raise 

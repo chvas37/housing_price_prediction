@@ -72,11 +72,4 @@ def preprocess_data():
         
     except Exception as e:
         logger.error(f"Error preprocessing data: {e}")
-        raise
-
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s'
-    )
-    preprocess_data() 
+        raise 
