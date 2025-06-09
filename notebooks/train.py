@@ -40,7 +40,7 @@ def train_model():
     print(f"Area coefficient: {model.coef_[0]:.2f}")
     print(f"Intercept: {model.intercept_:.2f}")
     
-    model_path = models_dir / "linear_regression_v2.pkl"
+    model_path = models_dir / "с.pkl"
     
     joblib.dump(model, model_path)
     

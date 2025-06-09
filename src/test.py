@@ -1,11 +1,10 @@
-"""Module for model testing"""
-
 import logging
 from pathlib import Path
 import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_squared_error, r2_score
 import joblib
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +63,7 @@ def test_model(model_path, test_path):
         
         metrics_df = pd.DataFrame([metrics])
         metrics_path = Path("metrics") / "test_metrics.csv"
-        metrics_path.parent.mkdir(exist_ok=True)
+        os.makedirs(metrics_path.parent, exist_ok=True)
         metrics_df.to_csv(metrics_path, index=False)
         logger.info(f"Test metrics saved to {metrics_path}")
         
@@ -72,4 +71,7 @@ def test_model(model_path, test_path):
         
     except Exception as e:
         logger.error(f"Error testing model: {e}")
-        raise 
+        raise
+
+if __name__ == "__main__":
+    test_model("models/catboost_regression_v1.pkl", "data/processed/test.csv") 

@@ -1,5 +1,4 @@
-"""Module for model training"""
-
+import os
 import logging
 from pathlib import Path
 import pandas as pd
@@ -15,7 +14,7 @@ MODEL_NAME = "catboost_regression_v1.pkl"
 
 def train_model(train_path):
     """Train the model"""
-    logger.info("Training model...")
+    logger.info("Starting model training...")
     try:
         models_dir = Path("models")
         models_dir.mkdir(parents=True, exist_ok=True)
@@ -70,7 +69,6 @@ def train_model(train_path):
         logger.info(f"R² Score: {r2:.6f}")
         logger.info(f"Mean Absolute Error: {np.mean(np.abs(y_test - y_pred)):.2f} rubles")
 
-        # Выводим важность признаков
         feature_importance = pd.DataFrame({
             'Feature': required_columns,
             'Importance': model.get_feature_importance()
@@ -79,6 +77,7 @@ def train_model(train_path):
         logger.info(feature_importance.to_string())
 
         model_path = models_dir / MODEL_NAME
+        os.makedirs(os.path.dirname(model_path), exist_ok=True)
         joblib.dump(model, model_path)
         logger.info(f"Model saved to {model_path}")
         
@@ -87,3 +86,6 @@ def train_model(train_path):
     except Exception as e:
         logger.error(f"Error training model: {e}")
         raise 
+
+if __name__ == "__main__":
+    train_model("data/processed/train.csv") 

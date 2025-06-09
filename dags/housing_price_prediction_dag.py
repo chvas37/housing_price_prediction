@@ -1,16 +1,20 @@
+from datetime import datetime, timedelta
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+import sys
 import os
-import glob
 import logging
-from pathlib import Path
 import pandas as pd
+import pickle
+from pathlib import Path
+from sklearn.ensemble import RandomForestRegressor
+import glob
 import sqlalchemy
 from sqlalchemy import create_engine
 
-logging.basicConfig(
-    level=logging.DEBUG,  
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+sys.path.append('/opt/airflow/src')
+
+from parse_cian import main as parse_cian_main
 
 def extract_flat_id(url):
     """Extract flat ID from Cian URL"""
@@ -18,6 +22,7 @@ def extract_flat_id(url):
 
 def preprocess_data():
     """Preprocess the data"""
+    logger = logging.getLogger(__name__)
     logger.info("Starting data preprocessing...")
     try:
         processed_dir = Path("data/processed")
@@ -47,17 +52,17 @@ def preprocess_data():
         df = df[df['price'] < 1000000000]
         
         logger.debug("Creating feature columns...")
-        df["rooms_1"] = df["rooms_count"] == 1
-        df["rooms_2"] = df["rooms_count"] == 2
-        df["rooms_3"] = df["rooms_count"] == 3
-        df["first_floor"] = df["floor"] == 1
-        df["last_floor"] = df["floor"] == df["floors_count"]
+        df["rooms_1"] = (df["rooms_count"] == 1).astype(int)
+        df["rooms_2"] = (df["rooms_count"] == 2).astype(int)
+        df["rooms_3"] = (df["rooms_count"] == 3).astype(int)
+        df["first_floor"] = (df["floor"] == 1).astype(int)
+        df["last_floor"] = (df["floor"] == df["floors_count"]).astype(int)
 
         df = df[['total_meters', 'floors_count', 'floor', 
                 'rooms_1', 'rooms_2', 'rooms_3', 'first_floor', 'last_floor', 'price']]
         
-        print("\nДатасет после предобработки:")
-        print(df)
+        logger.info("\nДатасет после предобработки:")
+        logger.info(df.to_string())
         
         logger.info("\nPreprocessed data statistics:")
         logger.info(f"Number of samples after preprocessing: {len(df)}")
@@ -77,11 +82,9 @@ def preprocess_data():
         logger.debug(f"Saving test data to {test_path.absolute()}")
         test_df.to_csv(test_path)
         
-        # Сохраняем данные в PostgreSQL
         logger.info("Saving data to PostgreSQL...")
         engine = create_engine('postgresql://airflow:airflow@postgres:5432/airflow')
         
-        # Создаем таблицу processed_data, если она не существует
         df.to_sql('processed_data', engine, if_exists='replace', index=True)
         logger.info("Data successfully saved to PostgreSQL")
         
@@ -96,6 +99,78 @@ def preprocess_data():
         logger.error(f"Error preprocessing data: {e}", exc_info=True)  
         raise 
 
-if __name__ == "__main__":
-    preprocess_data()
+def train_model(**context):
+    """Train the model using preprocessed data"""
+    logger = logging.getLogger(__name__)
+    logger.info("Starting model training...")
+   
+    train_path, test_path = context['task_instance'].xcom_pull(task_ids='preprocess_data')
+    logger.info(f"Using train data from: {train_path}")
+    logger.info(f"Using test data from: {test_path}")
+  
+    train_data = pd.read_csv(train_path, index_col='url_id')
+    test_data = pd.read_csv(test_path, index_col='url_id')
+ 
+    X_train = train_data.drop('price', axis=1)
+    y_train = train_data['price']
+    X_test = test_data.drop('price', axis=1)
+    y_test = test_data['price']
 
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    model.fit(X_train, y_train)
+    
+    train_score = model.score(X_train, y_train)
+    test_score = model.score(X_test, y_test)
+    
+    logger.info(f"Model training completed")
+    logger.info(f"Train R2 score: {train_score:.4f}")
+    logger.info(f"Test R2 score: {test_score:.4f}")
+ 
+    models_dir = Path('/opt/airflow/data/models')
+    models_dir.mkdir(exist_ok=True)
+    model_path = models_dir / 'model.pkl'
+    
+    with open(model_path, 'wb') as f:
+        pickle.dump(model, f)
+    
+    logger.info(f"Model saved to {model_path}")
+    
+    return str(model_path)
+
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}
+
+dag = DAG(
+    'housing_price_prediction',
+    default_args=default_args,
+    description='Pipeline for housing price prediction',
+    schedule_interval=timedelta(days=1),
+    start_date=datetime(2024, 1, 1),
+    catchup=False,
+)
+
+parse_data = PythonOperator(
+    task_id='parse_cian_data',
+    python_callable=parse_cian_main,
+    dag=dag,
+)
+
+preprocess = PythonOperator(
+    task_id='preprocess_data',
+    python_callable=preprocess_data,
+    dag=dag,
+)
+
+train = PythonOperator(
+    task_id='train_model',
+    python_callable=train_model,
+    dag=dag,
+)
+
+parse_data >> preprocess >> train 

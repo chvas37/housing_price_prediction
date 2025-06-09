@@ -3,6 +3,7 @@ stages:
     cmd: python src/preprocess.py
     deps:
       - data/raw
+      - src/preprocess.py
     outs:
       - data/processed/train.csv
       - data/processed/test.csv

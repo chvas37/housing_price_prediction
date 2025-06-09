@@ -11,7 +11,7 @@ import logging
 from datetime import datetime
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
+from catboost import CatBoostRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 import re
 import cianparser
@@ -32,7 +32,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 TRAIN_SIZE = 0.8
-MODEL_NAME = "linear_regression_v1.pkl"
+MODEL_NAME = "catboost_regression_v1.pkl"
 
 def parse_cian():
     """Parse data from cian.ru"""
@@ -174,7 +174,14 @@ def train_model():
             X, y, test_size=0.2, random_state=42
         )
    
-        model = LinearRegression()
+        model = CatBoostRegressor(
+            iterations=500,
+            learning_rate=0.01,
+            depth=5,
+            l2_leaf_reg=2,
+            random_seed=42,
+            verbose=100
+        )
         
         model.fit(X_train, y_train)
        
@@ -189,7 +196,6 @@ def train_model():
         logger.info(f"R² Score: {r2:.6f}")
         logger.info(f"Mean Absolute Error: {np.mean(np.abs(y_test - y_pred)):.2f} rubles")
 
-        # Выводим коэффициенты модели
         coefficients = pd.DataFrame({
             'Feature': required_columns,
             'Coefficient': model.coef_
