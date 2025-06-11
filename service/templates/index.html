@@ -9,12 +9,12 @@
             font-family: Arial, sans-serif;
             margin: 20px;
         }
-        
+
         .form-container {
             max-width: 400px;
             margin: 0 auto;
         }
-        
+
         input[type="number"] {
             width: 100%;
             padding: 10px;
@@ -22,7 +22,15 @@
             border: 1px solid #ccc;
             border-radius: 4px;
         }
-        
+
+        #token {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
         button {
             width: 100%;
             padding: 10px;
@@ -32,7 +40,7 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        
+
         button:hover {
             background-color: #0056b3;
         }
@@ -46,6 +54,7 @@
             <input type="number" id="num2" placeholder="Количество комнат" required>
             <input type="number" id="num3" placeholder="Этажей в доме" required>
             <input type="number" id="num4" placeholder="Этаж квартиры" required>
+            <input id="token" placeholder="Секретный токен" required>
             <button type="button" onclick="submitForm()">Отправить</button>
         </form>
         <div id="response"></div>
@@ -57,6 +66,7 @@
             const num2 = document.getElementById('num2').value;
             const num3 = document.getElementById('num3').value;
             const num4 = document.getElementById('num4').value;
+            const token = document.getElementById('token').value;
 
             const data = {
                 area: num1,
@@ -68,7 +78,8 @@
             fetch('/api/numbers', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify(data)
             })
@@ -84,9 +95,10 @@
                         document.getElementById('response').innerText = 'Предсказана отрицательная цена.'
                     }
                } else {
+                    console.log(data)
                     document.getElementById('response').innerText = 'Ошибка при обработке данных на сервере';
                 }
-                
+
             })
             .catch(error => {
                 console.error('Ошибка:', error);
